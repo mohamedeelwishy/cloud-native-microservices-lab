@@ -1,0 +1,19 @@
+{{- range $name, $svc := .Values.services }}
+{{- if ne ($svc.enabled | toString) "false" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    app: {{ $name }}
+spec:
+  type: {{ $svc.serviceType | default "ClusterIP" }}
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: grpc-or-http
+      port: {{ $svc.port }}
+      targetPort: {{ $svc.port }}
+{{- end }}
+{{- end }}
