@@ -1,0 +1,96 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: online-boutique
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: online-boutique-warehouse
+  namespace: online-boutique
+spec:
+  subscriptions:
+    - image:
+        repoURL: wishivic/frontend
+        imageSelectionStrategy: NewestBuild
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: online-boutique
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: online-boutique-warehouse
+      sources:
+        direct: true
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: https://github.com/mohamedeelwishy/cloud-native-microservices-lab.git
+            checkout:
+              - branch: main
+                path: ./src
+        - uses: helm-update-image
+          config:
+            path: ./src/helm/online-boutique/values-dev.yaml
+            images:
+              - image: wishivic/frontend
+                key: services.frontend.tag
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./src
+            message: "chore(kargo): promote frontend to dev"
+        - uses: git-push
+          config:
+            path: ./src
+        - uses: argocd-update
+          config:
+            apps:
+              - name: online-boutique-dev
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: online-boutique
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: online-boutique-warehouse
+      sources:
+        stages:
+          - dev
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: https://github.com/mohamedeelwishy/cloud-native-microservices-lab.git
+            checkout:
+              - branch: main
+                path: ./src
+        - uses: helm-update-image
+          config:
+            path: ./src/helm/online-boutique/values-prod.yaml
+            images:
+              - image: wishivic/frontend
+                key: services.frontend.tag
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./src
+            message: "chore(kargo): promote frontend to prod"
+        - uses: git-push
+          config:
+            path: ./src
+        - uses: argocd-update
+          config:
+            apps:
+              - name: online-boutique-prod
